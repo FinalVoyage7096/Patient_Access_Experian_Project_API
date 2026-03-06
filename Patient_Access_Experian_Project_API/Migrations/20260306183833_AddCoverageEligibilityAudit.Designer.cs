@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Patient_Access_Experian_Project_API.Data;
 
@@ -11,9 +12,11 @@ using Patient_Access_Experian_Project_API.Data;
 namespace Patient_Access_Experian_Project_API.Migrations
 {
     [DbContext(typeof(PatientAccessDbContext))]
-    partial class PatientAccessDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306183833_AddCoverageEligibilityAudit")]
+    partial class AddCoverageEligibilityAudit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

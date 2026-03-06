@@ -16,6 +16,9 @@ namespace Patient_Access_Experian_Project_API.Data
         public DbSet<Patient> Patients => Set<Patient>();
         public DbSet<Appointment> Appointments => Set<Appointment>();
 
+        public DbSet<CoverageCheckLog> CoverageCheckLogs => Set<CoverageCheckLog>();
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -97,6 +100,19 @@ namespace Patient_Access_Experian_Project_API.Data
                 entity.HasIndex(x => new { x.ProviderId, x.StartUtc});
                 entity.HasIndex(x => new { x.ClinicId, x.StartUtc });
 
+            });
+
+            // Coverage Check Log
+            modelBuilder.Entity<CoverageCheckLog>(entity =>
+            {
+                entity.Property(x => x.ServiceCode).IsRequired().HasMaxLength(20);
+                entity.Property(x => x.RequestJson).IsRequired();
+                entity.Property(x => x.ResponseJson).IsRequired();
+                entity.Property(x => x.CoverageStatus).IsRequired().HasMaxLength(50);
+
+                // Query patterns: by patient, by created date
+                entity.HasIndex(x => new { x.PatientId, x.CreatedUtc });
+                entity.HasIndex(x => x.CreatedUtc);
             });
 
             // Seed Data

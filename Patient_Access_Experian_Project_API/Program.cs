@@ -14,7 +14,7 @@ builder.Services.AddControllers();
 
 // Register Appointment Service
 builder.Services.AddScoped<AppointmentService>();
-
+builder.Services.AddScoped<CoverageService>();
 // Add Swagger UI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
