@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Patient_Access_Experian_Project_API.Tests/Patient_Access_Experian_Project_API.Tests.csproj" Id="6beecaa7-8e9b-49d6-8b08-14fafad669ca" />
+  <Project Path="Patient_Access_Experian_Project_API/Patient_Access_Experian_Project_API.csproj" />
+</Solution>
