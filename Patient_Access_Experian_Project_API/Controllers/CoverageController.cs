@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Patient_Access_Experian_Project_API.Data_Transfer_Objects;
 using Patient_Access_Experian_Project_API.Services;
+using Microsoft.EntityFrameworkCore;
+using Patient_Access_Experian_Project_API.Data;
 
 namespace Patient_Access_Experian_Project_API.Controllers
 {
@@ -9,7 +11,13 @@ namespace Patient_Access_Experian_Project_API.Controllers
     public class CoverageController : ControllerBase
     {
         private readonly CoverageService _service;
-        public CoverageController(CoverageService service) => _service = service;
+        private readonly PatientAccessDbContext _db;
+        public CoverageController(CoverageService service, PatientAccessDbContext db)
+        {
+            _service = service;
+            _db = db;
+        }
+            
 
         /// <summary>
         /// Checks the eligibility of a coverage request and returns the result as an HTTP response.
@@ -41,6 +49,66 @@ namespace Patient_Access_Experian_Project_API.Controllers
             }
 
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Retrieves a list of coverage log items filtered by optional patient ID and date range.
+        /// </summary>
+        /// <remarks>The logs are returned in descending order by creation date. Filtering parameters are
+        /// optional; omitting them returns all logs up to the specified limit.</remarks>
+        /// <param name="patientId">The optional patient ID to filter the logs. If provided, only logs associated with this patient will be
+        /// returned.</param>
+        /// <param name="fromUtc">The optional start date and time in UTC to filter the logs. Only logs created on or after this date will be
+        /// included.</param>
+        /// <param name="toUtc">The optional end date and time in UTC to filter the logs. Only logs created before this date will be
+        /// included.</param>
+        /// <param name="take">The maximum number of log items to return. Must be between 1 and 200, inclusive. Defaults to 50 if not
+        /// specified.</param>
+        /// <param name="ct">A cancellation token to observe while waiting for the asynchronous operation to complete.</param>
+        /// <returns>An IActionResult containing a list of coverage log items that match the specified filters. Returns an empty
+        /// list if no logs are found.</returns>
+        [HttpGet("logs")]
+        [ProducesResponseType(typeof(List<CoverageLogItemDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLogs(
+            [FromQuery] Guid? patientId,
+            [FromQuery] DateTime? fromUtc,
+            [FromQuery] DateTime? toUtc,
+            [FromQuery] int take = 50,
+            CancellationToken ct = default)
+        {
+            take = Math.Clamp(take, 1, 200);
+
+            var query = _db.CoverageCheckLogs.AsNoTracking().AsQueryable();
+
+            if (patientId.HasValue)
+                query = query.Where(x => x.PatientId == patientId.Value);
+
+            if (fromUtc.HasValue)
+                query = query.Where(x => x.CreatedUtc >= fromUtc.Value);
+
+            if (toUtc.HasValue)
+                query = query.Where(x => x.CreatedUtc < toUtc.Value);
+
+            var items = await query
+                .OrderByDescending(x => x.CreatedUtc)
+                .Take(take)
+                .Select(x => new CoverageLogItemDto(
+                    x.Id, // referenceId
+                    x.PatientId,
+                    x.ClinicId,
+                    x.ProviderId,
+                    x.ServiceCode,
+                    x.ScheduledStartUtc,
+                    x.Eligible,
+                    x.CoverageStatus,
+                    x.Copay,
+                    x.DeductibleRemaining,
+                    x.EstimatedPatientResponsibility,
+                    x.CreatedUtc
+                    ))
+                .ToListAsync(ct);
+
+            return Ok(items);
         }
     }
 }
