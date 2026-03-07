@@ -24,7 +24,7 @@ namespace Patient_Access_Experian_Project_API.Tests.TestUtilities
 
             var db = new PatientAccessDbContext(options);
 
-            // Create schema from the model (no migrations)
+            // Create schema from the model
             db.Database.EnsureCreated();
 
             return (conn, db);
