@@ -21,6 +21,17 @@ builder.Services.AddControllers();
 // Register Appointment Service
 builder.Services.AddScoped<AppointmentService>();
 builder.Services.AddScoped<CoverageService>();
+
+builder.Services.AddProblemDetails();
+
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = ctx =>
+    {
+        ctx.ProblemDetails.Extensions["traceId"] = ctx.HttpContext.TraceIdentifier;
+    };
+});
+
 // Add Swagger UI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -40,6 +51,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(); // https://localhost:####/swagger
     //app.MapOpenApi();
 }
+
+app.UseExceptionHandler();
+
+app.Use(async (context, next) =>
+{
+    using (app.Logger.BeginScope(new Dictionary<string, object>
+    {
+        ["traceId"] = context.TraceIdentifier,
+        ["path"] = context.Request.Path.Value ?? "",
+        ["method"] = context.Request.Method,
+    }))
+    {
+        await next();
+    }
+});
 
 app.UseHttpsRedirection();
 

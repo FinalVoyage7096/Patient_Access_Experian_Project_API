@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-
+using System.Linq;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http.Json;
@@ -44,6 +44,7 @@ namespace Patient_Access_Experian_Project_API.Tests
             // Arrange
             var client = _factory.CreateClient();
 
+            await WithDbAsync(db => TestDataSeeder.ResetCoverageLogsAsync(db));
             var ids = await WithDbAsync(db => TestDataSeeder.SeedBasicAsync(db));
 
             // Build request
@@ -96,5 +97,77 @@ namespace Patient_Access_Experian_Project_API.Tests
             logs.Should().NotBeNull();
             logs!.Count.Should().Be(2);
         }
+
+        [Fact]
+        public async Task LogsEndpoint_SupportsSkipAndTake_PagesCorrectly()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+
+            await WithDbAsync(db => TestDataSeeder.ResetCoverageLogsAsync(db));
+            var ids = await WithDbAsync(db => TestDataSeeder.SeedBasicAsync(db));
+
+            // Create 3 logs (make sure they have distinct CreatedUtc order by calling endpoint)
+            for (int i = 0; i < 3; i++)
+            {
+                var req = new CoverageEligibilityRequest(
+                    PatientId: ids.PatientId,
+                    ClinicId: ids.ClinicId,
+                    ProviderId: ids.ProviderId,
+                    ServiceCode: "99213",
+                    ScheduledStartUtc: DateTime.UtcNow.AddDays(1 + i)
+                );
+
+                var resp = await client.PostAsJsonAsync("/api/coverage/eligibility", req);
+                resp.EnsureSuccessStatusCode();
+            }
+
+            // Act: page 1 (2 items)
+            var page1 = await client.GetFromJsonAsync<List<CoverageLogItemDto>>("/api/coverage/logs?take=2&skip=0");
+
+            // Act: page 2 (should be 1 item remaining)
+            var page2 = await client.GetFromJsonAsync<List<CoverageLogItemDto>>("/api/coverage/logs?take=2&skip=2");
+
+            // Assert
+            page1.Should().NotBeNull();
+            page2.Should().NotBeNull();
+
+            page1!.Count.Should().Be(2);
+            page2!.Count.Should().Be(1);
+
+            // Ensure no overlap between pages (by ReferenceId)
+            var page1Ids = page1.Select(x => x.ReferenceId).ToHashSet();
+            page1Ids.Contains(page2[0].ReferenceId).Should().BeFalse();
+
+            // Optional: ensure overall ordering is descending by CreatedUtc across concatenated pages
+            var all = page1.Concat(page2).ToList();
+            all.Should().BeInDescendingOrder(x => x.CreatedUtc);
+        }
+
+        [Fact]
+        public async Task Eligibility_MissingServiceCode_Returns400()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+
+            await WithDbAsync(db => TestDataSeeder.ResetCoverageLogsAsync(db));
+            var ids = await WithDbAsync(db => TestDataSeeder.SeedBasicAsync(db));
+
+            // ServiceCode intentionally invalid (empty)
+            var badRequest = new CoverageEligibilityRequest(
+                PatientId: ids.PatientId,
+                ClinicId: ids.ClinicId,
+                ProviderId: ids.ProviderId,
+                ServiceCode: "",
+                ScheduledStartUtc: DateTime.UtcNow.AddDays(1)
+            );
+
+            // Act
+            var resp = await client.PostAsJsonAsync("/api/coverage/eligibility", badRequest);
+
+            // Assert
+            resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
     }
 }

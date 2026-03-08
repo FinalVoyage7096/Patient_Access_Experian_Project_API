@@ -10,6 +10,7 @@ using Patient_Access_Experian_Project_API.Tests.TestUtilities;
 using Xunit;
 using Patient_Access_Experian_Project_API.Data;
 using Patient_Access_Experian_Project_API.Data_Transfer_Objects;
+using Microsoft.Extensions.Logging.Abstractions;
 
 
 namespace Patient_Access_Experian_Project_API.Tests
@@ -55,7 +56,7 @@ namespace Patient_Access_Experian_Project_API.Tests
             await using var _ = conn;
 
             var ids = await SeedBasicsAsync(db);
-            var svc = new CoverageService(db);
+            var svc = new CoverageService(db, NullLogger<CoverageService>.Instance);
 
             // Pick a weekday in UTC
             var scheduled = new DateTime(2026, 3, 9, 14, 0, 0, DateTimeKind.Utc); // Monday
@@ -95,7 +96,7 @@ namespace Patient_Access_Experian_Project_API.Tests
             await using var _ = conn;
 
             var ids = await SeedBasicsAsync(db);
-            var svc = new CoverageService(db);
+            var svc = new CoverageService(db, NullLogger<CoverageService>.Instance);
 
             // Saturday UTC
             var scheduled = new DateTime(2026, 3, 7, 14, 0, 0, DateTimeKind.Utc);
@@ -129,7 +130,7 @@ namespace Patient_Access_Experian_Project_API.Tests
             await using var _ = conn;
 
             var ids = await SeedBasicsAsync(db);
-            var svc = new CoverageService(db);
+            var svc = new CoverageService(db, NullLogger<CoverageService>.Instance);
 
             var scheduledLocal = new DateTime(2026, 3, 9, 9, 0, 0, DateTimeKind.Local);
 
@@ -164,7 +165,7 @@ namespace Patient_Access_Experian_Project_API.Tests
             db.Providers.Add(new Provider { Id = providerId, Name = "Dr Test", Specialty = "Primary Care" });
             await db.SaveChangesAsync();
 
-            var svc = new CoverageService(db);
+            var svc = new CoverageService(db, NullLogger<CoverageService>.Instance);
 
             var req = new CoverageEligibilityRequest(
                 Guid.NewGuid(), // patient missing

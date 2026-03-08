@@ -40,12 +40,13 @@ namespace Patient_Access_Experian_Project_API.Controllers
 
             if (!success)
             {
-                if (error is null) return BadRequest("Unknown error.");
+                if (string.IsNullOrWhiteSpace(error))
+                    return Problem(title: "Eligibility check failed.", statusCode: StatusCodes.Status400BadRequest);
 
                 if (error.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                    return NotFound(error);
+                    return Problem(title: "Not Found", detail: error, statusCode: StatusCodes.Status404NotFound);
 
-                return BadRequest(error);
+                return Problem(title: "Bad Request", detail: error, statusCode: StatusCodes.Status400BadRequest);
             }
 
             return Ok(response);
@@ -69,19 +70,37 @@ namespace Patient_Access_Experian_Project_API.Controllers
         /// list if no logs are found.</returns>
         [HttpGet("logs")]
         [ProducesResponseType(typeof(List<CoverageLogItemDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> GetLogs(
-            [FromQuery] Guid? patientId,
-            [FromQuery] DateTime? fromUtc,
-            [FromQuery] DateTime? toUtc,
             [FromQuery] int take = 50,
+            [FromQuery] int skip = 0,
+            [FromQuery] Guid? patientId = null,
+            [FromQuery] Guid? providerId = null,
+            [FromQuery] Guid? clinicId = null,
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null,
             CancellationToken ct = default)
         {
-            take = Math.Clamp(take, 1, 200);
+            // Basic validation for date range + UTC
+            if (fromUtc.HasValue && fromUtc.Value.Kind != DateTimeKind.Utc)
+                return BadRequest("fromUtc must be a UTC DateTime (DateTimeKind.Utc).");
 
-            var query = _db.CoverageCheckLogs.AsNoTracking().AsQueryable();
+            if (toUtc.HasValue && toUtc.Value.Kind != DateTimeKind.Utc)
+                return BadRequest("toUtc must be a UTC DateTime (DateTimeKind.Utc).");
+
+            if (fromUtc.HasValue && toUtc.HasValue && fromUtc.Value >= toUtc.Value)
+                return BadRequest("fromUtc must be earlier than toUtc.");
+
+            IQueryable<Models.CoverageCheckLog> query = _db.CoverageCheckLogs.AsNoTracking();
 
             if (patientId.HasValue)
                 query = query.Where(x => x.PatientId == patientId.Value);
+
+            if (providerId.HasValue)
+                query = query.Where(x => x.ProviderId == providerId.Value);
+
+            if (clinicId.HasValue)
+                query = query.Where(x => x.ClinicId == clinicId.Value);
 
             if (fromUtc.HasValue)
                 query = query.Where(x => x.CreatedUtc >= fromUtc.Value);
@@ -89,9 +108,13 @@ namespace Patient_Access_Experian_Project_API.Controllers
             if (toUtc.HasValue)
                 query = query.Where(x => x.CreatedUtc < toUtc.Value);
 
+            skip = Math.Max(skip, 0);
+            take = Math.Clamp(take, 1, 200);
+
             var items = await query
-                .OrderByDescending(x => x.CreatedUtc)
-                .Take(take)
+                .OrderByDescending(x => x.CreatedUtc) // ORDER FIRST
+                .Skip(skip)                           // THEN SKIP
+                .Take(take)                           // THEN TAKE
                 .Select(x => new CoverageLogItemDto(
                     x.Id, // referenceId
                     x.PatientId,
@@ -105,7 +128,7 @@ namespace Patient_Access_Experian_Project_API.Controllers
                     x.DeductibleRemaining,
                     x.EstimatedPatientResponsibility,
                     x.CreatedUtc
-                    ))
+                ))
                 .ToListAsync(ct);
 
             return Ok(items);

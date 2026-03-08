@@ -1,10 +1,12 @@
-﻿namespace Patient_Access_Experian_Project_API.Data_Transfer_Objects
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Patient_Access_Experian_Project_API.Data_Transfer_Objects
 {
     public record CoverageEligibilityRequest(
-        Guid PatientId,
-        Guid ClinicId,
-        Guid ProviderId,
-        string ServiceCode,
+        [Required] Guid PatientId,
+        [Required] Guid ClinicId,
+        [Required] Guid ProviderId,
+        [Required, MinLength(1), MaxLength(10)] string ServiceCode,
         DateTime ScheduledStartUtc
         );
 

@@ -114,19 +114,31 @@ namespace Patient_Access_Experian_Project_API.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(List<AppointmentResponse>), StatusCodes.Status200OK)]
         public async Task<IActionResult> List(
-            [FromQuery] Guid? clinicId,
-            [FromQuery] Guid? providerId,
-            [FromQuery] DateTime? fromUtc,
-            [FromQuery] DateTime? toUtc,
-            CancellationToken ct)
+            [FromQuery] int take = 50,
+            [FromQuery] int skip = 0,
+            [FromQuery] Guid? clinicId = null,
+            [FromQuery] Guid? providerId = null,
+            [FromQuery] Guid? patientId = null,
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null,
+            CancellationToken ct = default)
         {
+            take = Math.Clamp(take, 1, 200);
+            skip = Math.Max(0, skip);
+
             var query = _db.Appointments.AsNoTracking().AsQueryable();
+
+            if (clinicId.HasValue) query = query.Where(a => a.ClinicId == clinicId.Value);
+            if (providerId.HasValue) query = query.Where(a => a.ProviderId == providerId.Value);
+            if (patientId.HasValue) query = query.Where(a => a.PatientId == patientId.Value);
 
             if (fromUtc.HasValue) query = query.Where(a => a.StartUtc >= fromUtc.Value);
             if (toUtc.HasValue) query = query.Where(a => a.StartUtc < toUtc.Value);
 
             var results = await query
                 .OrderBy(a => a.StartUtc)
+                .Skip(skip)
+                .Take(take)
                 .Select(a => new AppointmentResponse(
                     a.Id,
                     a.ClinicId,
@@ -135,11 +147,11 @@ namespace Patient_Access_Experian_Project_API.Controllers
                     a.StartUtc,
                     a.EndUtc,
                     a.Status.ToString()
-                 ))
+                ))
                 .ToListAsync(ct);
+
             return Ok(results);
         }
-
 
         /// <summary>
         /// Attempts to cancel the specified appointment if it has not already been completed.
@@ -162,6 +174,9 @@ namespace Patient_Access_Experian_Project_API.Controllers
 
             if (appt.Status == Models.AppointmentStatus.Completed)
                 return BadRequest("Cannot cancel a completed appointment.");
+
+            if (appt.Status == Models.AppointmentStatus.Cancelled)
+                return BadRequest("Appointment is already cancelled.");
 
             appt.Status = Models.AppointmentStatus.Cancelled;
             await _db.SaveChangesAsync(ct);
@@ -192,6 +207,9 @@ namespace Patient_Access_Experian_Project_API.Controllers
 
             if (appt.Status == Models.AppointmentStatus.Cancelled)
                 return BadRequest("Cannot complete a cancelled appointment.");
+
+            if (appt.Status == Models.AppointmentStatus.Completed)
+                return BadRequest("Appointment is already completed.");
 
             appt.Status = Models.AppointmentStatus.Completed;
             await _db.SaveChangesAsync(ct);

@@ -53,5 +53,13 @@ namespace Patient_Access_Experian_Project_API.Tests.Infrastructure
 
             return (PatientId, ProviderId, ClinicId);
         }
-    }
+
+
+        public static async Task ResetCoverageLogsAsync(PatientAccessDbContext db)
+        {
+            db.CoverageCheckLogs.RemoveRange(db.CoverageCheckLogs);
+            await db.SaveChangesAsync();
+        }
+
+}
 }
