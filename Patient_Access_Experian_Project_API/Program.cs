@@ -5,10 +5,16 @@ using Patient_Access_Experian_Project_API.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContext<PatientAccessDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString(
-            "PatientAccessDb")));
+// In tests we use an in-memory SQLite provider, so avoid registering the SQL Server
+// provider when running in the 'Testing' environment to prevent multiple provider
+// registrations. The test host will replace the DbContext registration.
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<PatientAccessDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString(
+                "PatientAccessDb")));
+}
 
 builder.Services.AddControllers();
 
@@ -42,3 +48,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

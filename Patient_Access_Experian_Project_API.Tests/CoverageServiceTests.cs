@@ -88,10 +88,99 @@ namespace Patient_Access_Experian_Project_API.Tests
             log.CreatedUtc.Should().BeCloseTo(DateTime.UtcNow, precision: TimeSpan.FromSeconds(5));
         }
 
+        [Fact]
+        public async Task CheckEligibilityAsync_Weekend_ReturnsIneligible_AndWritesLog()
+        {
+            var (conn, db) = DatabaseFactory.CreateSqliteInMemoryDb();
+            await using var _ = conn;
 
+            var ids = await SeedBasicsAsync(db);
+            var svc = new CoverageService(db);
 
+            // Saturday UTC
+            var scheduled = new DateTime(2026, 3, 7, 14, 0, 0, DateTimeKind.Utc);
 
+            var req = new CoverageEligibilityRequest(
+                ids.PatientId,
+                ids.ClinicId,
+                ids.ProviderId,
+                "93000",
+                scheduled
+            );
 
+            var (success, error, response) = await svc.CheckEligibilityAsync(req);
 
+            success.Should().BeTrue();
+            error.Should().BeNull();
+            response.Should().NotBeNull();
+
+            response!.Eligible.Should().BeFalse();
+            response.CoverageStatus.Should().Be("Inactive");
+            response.Copay.Should().Be(50m);
+
+            db.CoverageCheckLogs.Count().Should().Be(1);
+            db.CoverageCheckLogs.Single().Eligible.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task CheckEligibilityAsync_NonUtcDate_ReturnsError_DoesNotWriteLog()
+        {
+            var (conn, db) = DatabaseFactory.CreateSqliteInMemoryDb();
+            await using var _ = conn;
+
+            var ids = await SeedBasicsAsync(db);
+            var svc = new CoverageService(db);
+
+            var scheduledLocal = new DateTime(2026, 3, 9, 9, 0, 0, DateTimeKind.Local);
+
+            var req = new CoverageEligibilityRequest(
+                ids.PatientId,
+                ids.ClinicId,
+                ids.ProviderId,
+                "99213",
+                scheduledLocal
+            );
+
+            var (success, error, response) = await svc.CheckEligibilityAsync(req);
+
+            success.Should().BeFalse();
+            error.Should().Be("ScheduledStartUtc must be a UTC DateTime (DateTimeKind.Utc).");
+            response.Should().BeNull();
+
+            db.CoverageCheckLogs.Count().Should().Be(0);
+        }
+
+        [Fact]
+        public async Task CheckEligibilityAsync_MissingPatient_ReturnsNotFound_DoesNotWriteLog()
+        {
+            var (conn, db) = DatabaseFactory.CreateSqliteInMemoryDb();
+            await using var _ = conn;
+
+            // Seed only clinic + provider, omit patient
+            var clinicId = Guid.NewGuid();
+            var providerId = Guid.NewGuid();
+
+            db.Clinics.Add(new Clinic { Id = clinicId, Name = "Test Clinic", TimeZone = "America/New_York" });
+            db.Providers.Add(new Provider { Id = providerId, Name = "Dr Test", Specialty = "Primary Care" });
+            await db.SaveChangesAsync();
+
+            var svc = new CoverageService(db);
+
+            var req = new CoverageEligibilityRequest(
+                Guid.NewGuid(), // patient missing
+                clinicId,
+                providerId,
+                "99213",
+                new DateTime(2026, 3, 9, 14, 0, 0, DateTimeKind.Utc)
+            );
+
+            var (success, error, response) = await svc.CheckEligibilityAsync(req);
+
+            success.Should().BeFalse();
+            error.Should().Be("Patient not found.");
+            response.Should().BeNull();
+
+            db.CoverageCheckLogs.Count().Should().Be(0);
+        }
     }
 }
