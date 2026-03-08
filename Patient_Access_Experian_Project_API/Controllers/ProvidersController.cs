@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Patient_Access_Experian_Project_API.Data;
 using Patient_Access_Experian_Project_API.Data_Transfer_Objects;
-
+using Patient_Access_Experian_Project_API.Services;
 
 namespace Patient_Access_Experian_Project_API.Controllers
 {
@@ -12,8 +12,12 @@ namespace Patient_Access_Experian_Project_API.Controllers
     public class ProvidersController : ControllerBase
     {
         private readonly PatientAccessDbContext _db;
-        public ProvidersController(PatientAccessDbContext db) => _db = db;
-
+        private readonly SlotService _slots;
+        public ProvidersController(PatientAccessDbContext db, SlotService slots)
+        {
+            _db = db;
+            _slots = slots;
+        }
 
         /// <summary>
         /// Returns a list of all healthcare providers with their ID, name, and specialty.
@@ -57,6 +61,43 @@ namespace Patient_Access_Experian_Project_API.Controllers
 
             return provider is null ? NotFound() : Ok(provider);
         }
-       
+
+        /// <summary>
+        /// Returns available appointment slots for a provider in a UTC time range.
+        /// Slots are computed from provider availability windows minus existing appointments.
+        /// </summary>
+        /// <param name="providerId">Provider ID.</param>
+        /// <param name="clinicId">Optional clinic filter (limits conflict checks to that clinic).</param>
+        /// <param name="fromUtc">Range start (UTC).</param>
+        /// <param name="toUtc">Range end (UTC).</param>
+        /// <param name="slotMinutes">Slot size in minutes (5..120). Default 30.</param>
+        [HttpGet("{providerId:guid}/slots")]
+        [ProducesResponseType(typeof(List<AvailableSlotDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetSlots(
+            Guid providerId,
+            [FromQuery] Guid? clinicId,
+            [FromQuery] DateTime fromUtc,
+            [FromQuery] DateTime toUtc,
+            [FromQuery] int slotMinutes = 30,
+            CancellationToken ct = default)
+        {
+            var (success, error, slots) = await _slots.GetProviderSlotsAsync(
+                providerId, clinicId, fromUtc, toUtc, slotMinutes, ct);
+
+            if (!success)
+            {
+                if (string.IsNullOrWhiteSpace(error))
+                    return BadRequest("Invalid request.");
+
+                if (error.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                    return NotFound(error);
+
+                return BadRequest(error);
+            }
+
+            return Ok(slots);
+        }
     }
 }

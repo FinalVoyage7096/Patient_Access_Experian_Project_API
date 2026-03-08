@@ -21,6 +21,7 @@ builder.Services.AddControllers();
 // Register Appointment Service
 builder.Services.AddScoped<AppointmentService>();
 builder.Services.AddScoped<CoverageService>();
+builder.Services.AddScoped<SlotService>();
 
 builder.Services.AddProblemDetails();
 
