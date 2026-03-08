@@ -43,7 +43,17 @@ builder.Services.AddSwaggerGen(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", p =>
+        p.WithOrigins("https://localhost:7244")
+         .AllowAnyHeader()
+         .AllowAnyMethod());
+});
+
 var app = builder.Build();
+
+app.UseCors("DevCors");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
