@@ -6,8 +6,4 @@ public class Clinic
     public string Name { get; set; } = string.Empty;
     public string TimeZone { get; set; } = "America/Chicago";
 
-
-
-
-
 }
