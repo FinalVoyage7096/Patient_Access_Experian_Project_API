@@ -2,11 +2,16 @@
 <img width="998" height="938" alt="image" src="https://github.com/user-attachments/assets/07fca733-4b98-411e-8322-8360b541cb3c" />
 [![CI](https://github.com/FinalVoyage7096/Patient_Access_Experian_Project_API/actions/workflows/ci.yml/badge.svg)](https://github.com/FinalVoyage7096/Patient_Access_Experian_Project_API/actions/workflows/ci.yml)
 
-A small full-stack healthcare appointment booking demo built with ASP.NET Core, Entity Framework Core, SQL Server, and a React + TypeScript + Tailwind client.
+A small full-stack healthcare demo built with ASP.NET Core, Entity Framework Core, SQL Server, and a React/TypeScript/Tailwind client. It includes both a patient-access scheduling flow and a revenue-cycle transactions workflow.
 
 <img width="1083" height="667" alt="image" src="https://github.com/user-attachments/assets/7aac67d0-6fd6-4a83-881e-b42c718bd2df" />
 
 This project supports:
+- Creating claims with service lines (CPT/HCPCS-style codes)
+- Submitting claims with Idempotency-Key support
+- Mock adjudication that writes immutable ledger transactions (Submit/Adjust/Pay/Deny)
+- Revenue Cycle Dashboard (KPIs + recent claims + per-claim ledger modal)
+- One-click Seed Demo Data to populate the dashboard instantly
 - Browsing providers, clinics, and patients
 - Viewing provider availability slots
 - Booking, cancelling, and completing appointments
@@ -119,6 +124,25 @@ POST /api/appointments/{appointmentId}/complete
 POST /api/coverage/eligibility
 GET /api/coverage/logs?take=50&skip=0&patientId=...&fromUtc=...&toUtc=...
 ```
+### Revenue Cycle (Claims & Ledger)
+```
+GET /api/payers
+POST /api/payers
+
+POST /api/claims
+GET /api/claims
+GET /api/claims/{claimId}
+POST /api/claims/{claimId}/submit           (requires Idempotency-Key header)
+POST /api/claims/{claimId}/adjudicate
+GET /api/claims/{claimId}/transactions
+
+GET /api/reconciliation/claims-summary?clinicId=...&payerId=...&fromUtc=...&toUtc=...
+```
+### Demo (Populate Dashboard)
+```
+POST /api/demo/seed-claims?clinicId=...&payerId=...&count=12&daysBack=30
+```
+
 ## Tests
 ### Run all tests
 ```
@@ -134,19 +158,27 @@ This repo includes a GitHub Actions workflow that:
 - Runs tests
 
 ## Demo Workflow
-Open the React app
-Pick a Clinic, Patient, Provider
-Load available slots
-Click a slot to book an appointment
-Confirm the appointment exists via the API
-Optionally run Coverage Eligibility and view Coverage Logs
+### Scheduling (Patient Access)
+- Open the React app
+- Pick a Clinic, Patient, Provider
+- Load available slots
+- Click a slot to book an appointment
+- Optionally run Coverage Eligibility and view Coverage Logs
+
+### Revenue Cycle Dashboard
+- Go to /dashboard
+- Select a Clinic (Hospital)
+- (Optional) Select a Payer
+- Click Seed Demo Data
+- KPI cards + Recent Claims populate immediately
+- Click View ledger to see immutable transactions (Submit/Adjust/Pay/Deny)
 
 ## Future Improvements 
 - Auth (JWT)
 - Appointment reschedule endpoint
 - Realistic coverage “rules engine”
 - Docker + docker-compose (API + SQL Server + client)
-- Metrics dashboard (appointments booked, cancellation rate, coverage check volume)
+- More dashboard metrics (trend charts, short-pay detection, time-to-pay distribution)
 
 ## License 
 This project is for educational/demo purposes.
