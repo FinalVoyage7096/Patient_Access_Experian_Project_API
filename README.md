@@ -1,4 +1,5 @@
 # Patient_Access_Experian_Project_API
+<img width="998" height="938" alt="image" src="https://github.com/user-attachments/assets/07fca733-4b98-411e-8322-8360b541cb3c" />
 [![CI](https://github.com/FinalVoyage7096/Patient_Access_Experian_Project_API/actions/workflows/ci.yml/badge.svg)](https://github.com/FinalVoyage7096/Patient_Access_Experian_Project_API/actions/workflows/ci.yml)
 
 A small full-stack healthcare appointment booking demo built with ASP.NET Core, Entity Framework Core, SQL Server, and a React + TypeScript + Tailwind client.
