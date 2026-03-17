@@ -18,6 +18,10 @@ namespace Patient_Access_Experian_Project_API.Data
 
         public DbSet<CoverageCheckLog> CoverageCheckLogs => Set<CoverageCheckLog>();
 
+        public DbSet<Payer> Payers => Set<Payer>();
+        public DbSet<Claim> Claims => Set<Claim>();
+        public DbSet<ClaimServiceLine> ClaimServiceLines => Set<ClaimServiceLine>();
+        public DbSet<ClaimTransaction> ClaimTransactions => Set<ClaimTransaction>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -114,6 +118,25 @@ namespace Patient_Access_Experian_Project_API.Data
                 entity.HasIndex(x => new { x.PatientId, x.CreatedUtc });
                 entity.HasIndex(x => x.CreatedUtc);
             });
+
+            modelBuilder.Entity<Payer>()
+                .HasIndex(p => p.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Claim>()
+                .HasIndex(c => new { c.PayerId, c.CreatedUtc });
+
+            modelBuilder.Entity<Claim>()
+                .HasIndex(c => c.SubmissionIdempotencyKey);
+
+            modelBuilder.Entity<ClaimServiceLine>()
+                .Property(x => x.ServiceCode)
+                .HasMaxLength(16);
+
+            modelBuilder.Entity<ClaimTransaction>()
+                .HasIndex(x => new { x.ClaimId, x.CreatedUtc });
+
+
 
             // Seed Data
             var clinicId = Guid.Parse("11111111-1111-1111-1111-111111111111");
